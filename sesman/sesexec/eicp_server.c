@@ -151,7 +151,8 @@ handle_create_session_request(struct trans *self)
     status = eicp_get_create_session_request(
                  self, &sp.x11_display,
                  &sp.type, &sp.width, &sp.height,
-                 &sp.bpp, &sp.shell, &sp.directory);
+                 &sp.bpp, &sp.shell, &sp.directory,
+                 &sp.port);
     if (status == 0)
     {
         enum scp_screate_status scp_status = E_SCP_SCREATE_OK;
@@ -192,7 +193,8 @@ handle_create_session_request(struct trans *self)
                               sp.bpp,
                               &sp.guid,
                               g_login_info->ip_addr,
-                              session_get_start_time(g_session_data))) != 0)
+                              session_get_start_time(g_session_data),
+                              sp.port)) != 0)
             {
                 // We failed to tell sesman about the new session. This
                 // probably means sesman has exited in the time between

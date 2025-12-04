@@ -185,7 +185,8 @@ session_list_get_bydata(uid_t uid,
                         unsigned short width,
                         unsigned short height,
                         unsigned char  bpp,
-                        const char *ip_addr)
+                        const char *ip_addr,
+                        const char *port)
 {
     char policy_str[64];
     int policy = g_cfg->sess.policy;
@@ -194,6 +195,11 @@ session_list_get_bydata(uid_t uid,
     if (ip_addr == NULL)
     {
         ip_addr = "";
+    }
+
+    if (port == NULL)
+    {
+        port = "";
     }
 
     if ((policy & SESMAN_CFG_SESS_POLICY_DEFAULT) != 0)
@@ -207,11 +213,11 @@ session_list_get_bydata(uid_t uid,
     config_output_policy_string(policy, policy_str, sizeof(policy_str));
 
     LOG(LOG_LEVEL_DEBUG,
-        "%s: search policy=%s type=%s U=%d B=%d D=(%dx%d) I=%s",
+        "%s: search policy=%s type=%s U=%d B=%d D=(%dx%d) I=%s P=%s",
         __func__,
         policy_str, SCP_SESSION_TYPE_TO_STR(type),
         uid, bpp, width, height,
-        ip_addr);
+        ip_addr, port);
 
     /* 'Separate' policy never matches */
     if (policy & SESMAN_CFG_SESS_POLICY_SEPARATE)
@@ -230,13 +236,13 @@ session_list_get_bydata(uid_t uid,
         }
 
         LOG(LOG_LEVEL_DEBUG,
-            "%s: try %p type=%s U=%d B=%d D=(%dx%d) I=%s",
+            "%s: try %p type=%s U=%d B=%d D=(%dx%d) I=%s P=%s",
             __func__,
             si,
             SCP_SESSION_TYPE_TO_STR(si->type),
             si->uid, si->bpp,
             si->start_width, si->start_height,
-            si->start_ip_addr);
+            si->start_ip_addr, si->xrdp_listening_port);
 
         if (si->type != type)
         {
@@ -272,6 +278,14 @@ session_list_get_bydata(uid_t uid,
         {
             LOG(LOG_LEVEL_DEBUG,
                 "%s: IPs don't match for 'I' policy", __func__);
+            continue;
+        }
+
+        if ((policy & SESMAN_CFG_SESS_POLICY_P) &&
+                g_strcmp(si->xrdp_listening_port, port) != 0)
+        {
+            LOG(LOG_LEVEL_DEBUG,
+                "%s: Ports don't match for 'P' policy", __func__);
             continue;
         }
 
@@ -349,12 +363,14 @@ session_list_get_byuid(const uid_t *uid, unsigned int *cnt, unsigned int flags)
             sess[index].client_ip = g_strdup(si->client_ip);
             sess[index].client_name = g_strdup(si->client_name);
             sess[index].last_connect_disconnect = si->last_connect_disconnect;
+            sess[index].xrdp_listening_port = g_strdup(si->xrdp_listening_port);
 
             /* Check for string allocation failures */
             if (sess[index].display == NULL ||
                     sess[index].start_ip_addr == NULL ||
                     sess[index].client_ip == NULL ||
-                    sess[index].client_name == NULL)
+                    sess[index].client_name == NULL ||
+                    sess[index].xrdp_listening_port == NULL)
             {
                 free_session_info_list(sess, *cnt);
                 (*cnt) = 0;
@@ -400,6 +416,7 @@ free_session_info_list(struct scp_session_info *sesslist, unsigned int cnt)
             g_free(sesslist[i].start_ip_addr);
             g_free(sesslist[i].client_ip);
             g_free(sesslist[i].client_name);
+            g_free(sesslist[i].xrdp_listening_port);
         }
     }
 

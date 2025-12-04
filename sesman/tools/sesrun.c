@@ -104,6 +104,7 @@ struct session_params
     const char *ip_addr;
 
     const char *username;
+    const char *port;
     char password[MAX_PASSWORD_LEN + 1];
 };
 
@@ -298,6 +299,7 @@ parse_program_args(int argc, char *argv[], struct session_params *sp,
     sp->directory = "";
     sp->shell = "";
     sp->ip_addr = "";
+    sp->port = "";
 
     sp->username = NULL;
     sp->password[0] = '\0';
@@ -492,13 +494,14 @@ send_create_session_request(struct trans *t, const struct session_params *sp)
 {
     LOG(LOG_LEVEL_DEBUG,
         "width:%d  height:%d  bpp:%d  code:%d\n"
-        "directory:\"%s\" shell:\"%s\"",
+        "directory:\"%s\" shell:\"%s\" port:\"%s\"",
         sp->width, sp->height, sp->bpp, sp->session_type,
-        sp->directory, sp->shell);
+        sp->directory, sp->shell, sp->port);
 
     return scp_send_create_session_request(
                t, sp->session_type,
-               sp->width, sp->height, sp->bpp, sp->shell, sp->directory);
+               sp->width, sp->height, sp->bpp, sp->shell,
+               sp->directory, sp->port);
 }
 
 /**************************************************************************//**

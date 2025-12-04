@@ -155,14 +155,15 @@ ercp_send_session_announce_event(struct trans *trans,
                                  unsigned char bpp,
                                  const struct guid *guid,
                                  const char *start_ip_addr,
-                                 time_t start_time)
+                                 time_t start_time,
+                                 const char *port)
 {
     struct libipm_fsb guid_descriptor = { (void *)guid, sizeof(*guid) };
 
     return libipm_msg_out_simple_send(
                trans,
                (int)E_ERCP_SESSION_ANNOUNCE_EVENT,
-               "siyqqyBsx",
+               "siyqqyBsxs",
                display,
                uid,
                type,
@@ -171,7 +172,8 @@ ercp_send_session_announce_event(struct trans *trans,
                bpp,
                &guid_descriptor,
                start_ip_addr,
-               (int64_t)start_time);
+               (int64_t)start_time,
+               port);
 }
 
 /*****************************************************************************/
@@ -186,7 +188,8 @@ ercp_get_session_announce_event(struct trans *trans,
                                 unsigned char *bpp,
                                 struct guid *guid,
                                 const char **start_ip_addr,
-                                time_t *start_time)
+                                time_t *start_time,
+                                const char **port)
 {
     /* Intermediate values */
     int32_t i_uid;
@@ -200,7 +203,7 @@ ercp_get_session_announce_event(struct trans *trans,
 
     int rv = libipm_msg_in_parse(
                  trans,
-                 "siyqqyBsx",
+                 "siyqqyBsxs",
                  display,
                  &i_uid,
                  &i_type,
@@ -209,7 +212,8 @@ ercp_get_session_announce_event(struct trans *trans,
                  &i_bpp,
                  &guid_descriptor,
                  start_ip_addr,
-                 &i_start_time);
+                 &i_start_time,
+                 port);
 
     if (rv == 0)
     {
