@@ -49,6 +49,7 @@ struct session_parameters
     struct guid guid;
     const char *shell;  // Must not be NULL
     const char *directory;  // Must not be NULL
+    const char *port;  //Must not be NULL
 };
 
 
