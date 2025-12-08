@@ -182,7 +182,7 @@ usage(void)
     g_printf("    -t <type>             Default:%s\n", DEFAULT_SESSION_TYPE);
     g_printf("    -D <directory>        Default: $HOME\n"
              "    -S <shell>            Default: Defined window manager\n"
-             "    -P <port>        Default: Empty\n"
+             "    -P <port>             Default: Empty\n"
              "    -p <password>         TESTING ONLY - DO NOT USE IN PRODUCTION\n"
              "    -F <file-descriptor>  Read password from this file descriptor\n"
              "    -c <sesman_ini>       Alternative sesman.ini file\n");
