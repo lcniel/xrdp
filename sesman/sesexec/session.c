@@ -1,7 +1,7 @@
 /**
  * xrdp: A Remote Desktop Protocol server.
  *
- * Copyright (C) Jay Sorg 2004-2015
+ * Copyright (C) Jay Sorg 2004-2025
  *
  * BSD process grouping by:
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland.
@@ -24,8 +24,10 @@
 /**
  *
  * @file session.c
- * @brief Session management code
- * @author Jay Sorg, Simone Fedele
+ * @brief Session management definitions
+ *
+ * This module wraps the session management classes
+ * @author Matt Burt
  *
  */
 
@@ -34,25 +36,19 @@
 #endif
 
 #include <stdio.h>
-#include <errno.h>
 
-#include "arch.h"
 #include "session.h"
+#include "session_base.h"
+#include "session_parameters.h"
 
 #include "sesman_auth.h"
 #include "sesman_config.h"
 #include "env.h"
-#include "guid.h"
-#include "list.h"
 #include "log.h"
 #include "login_info.h"
 #include "os_calls.h"
 #include "sesexec.h"
-#include "sessionrecord.h"
-#include "string_calls.h"
 #include "trans.h"
-#include "xauth.h"
-#include "xwait.h"
 #include "xrdp_sockets.h"
 
 struct session_data
@@ -73,10 +69,10 @@ struct session_data
 
 /******************************************************************************/
 /**
- * Create a new session_data structure from a session_parameters object
- *
- * @param sp Session parameters passed to session_start()
- * @return semi-initialised session_data struct
+ * Starts a session from an operating system perspective
+ * @param login_info login info for user
+ * @param s session_parameters
+ * @return Status
  */
 static struct session_data *
 session_data_new(const struct session_parameters *sp)
@@ -682,15 +678,9 @@ process_startup_wait_time(struct session_data *sd)
 
 /******************************************************************************/
 static enum scp_screate_status
-session_start_wrapped(struct login_info *login_info,
-                      const struct session_parameters *s,
-                      struct session_data *sd)
+session_start_preamble(struct login_info *login_info,
+                       const struct session_parameters *s)
 {
-    int chansrv_pid;
-    int display_pid;
-    int window_manager_pid;
-    enum scp_screate_status status = E_SCP_SCREATE_GENERAL_ERROR;
-
     /* Set the secondary groups before starting the session to prevent
      * problems on PAM-based systems (see Linux pam_setcred(3)).
      * If we have *BSD setusercontext() this is not done here */
@@ -704,7 +694,7 @@ session_start_wrapped(struct login_info *login_info,
     }
 #endif
 
-    if (auth_start_session(login_info->auth_info, s->display) != 0)
+    if (auth_start_session(login_info->auth_info, s->x11_display) != 0)
     {
         // Errors are logged by the auth module, as they are
         // specific to that module
@@ -719,104 +709,19 @@ session_start_wrapped(struct login_info *login_info,
     {
         LOG(LOG_LEVEL_WARNING,
             "[session start] (display %d): setsid failed - pid %d",
-            s->display, g_getpid());
+            s->x11_display, g_getpid());
     }
 
     if (g_setlogin(login_info->username) < 0)
     {
         LOG(LOG_LEVEL_WARNING,
             "[session start] (display %d): setlogin failed for user %s - pid %d",
-            s->display, login_info->username, g_getpid());
+            s->x11_display, login_info->username, g_getpid());
     }
 #endif
 
-    /* start the X server in a new process group.
-     *
-     * We group the X server, window manager and chansrv in a single
-     * process group, as it allows signals to be sent to the user session
-     * without affecting sesexec (and vice-versa). This is particularly
-     * important when debugging sesexec as we don't want a SIGINT in
-     * the debugger to be passed to the children */
-    display_pid = fork_child(start_x_server, login_info, s, 0, NULL);
-    if (display_pid > 0)
-    {
-        enum xwait_status xws;
-        xws = wait_for_xserver(login_info->uid,
-                               g_cfg->env_names,
-                               g_cfg->env_values,
-                               s->display);
-
-        if (xws != XW_STATUS_OK)
-        {
-            switch (xws)
-            {
-                case XW_STATUS_TIMED_OUT:
-                    LOG(LOG_LEVEL_ERROR, "Timed out waiting for X server");
-                    break;
-                case XW_STATUS_FAILED_TO_START:
-                    LOG(LOG_LEVEL_ERROR, "X server failed to start");
-                    break;
-                default:
-                    LOG(LOG_LEVEL_ERROR,
-                        "An error occurred waiting for the X server");
-            }
-            status = E_SCP_SCREATE_X_SERVER_FAIL;
-            /* Kill it anyway in case it did start and we just failed to
-             * pick up on it */
-            g_sigterm(display_pid);
-            g_waitpid(display_pid);
-        }
-        else
-        {
-            LOG(LOG_LEVEL_INFO, "X server :%d is working", s->display);
-            LOG(LOG_LEVEL_INFO, "Starting window manager for display :%d",
-                s->display);
-
-            window_manager_pid = fork_child(start_window_manager,
-                                            login_info, s, display_pid, NULL);
-            if (window_manager_pid < 0)
-            {
-                g_sigterm(display_pid);
-                g_waitpid(display_pid);
-            }
-            else
-            {
-                utmp_login(window_manager_pid, s->display, login_info);
-                LOG(LOG_LEVEL_INFO,
-                    "Starting the xrdp channel server for display :%d",
-                    s->display);
-
-                chansrv_pid = fork_child(start_chansrv, login_info,
-                                         s, display_pid, NULL);
-
-                sd->win_mgr = window_manager_pid;
-                sd->x_server = display_pid;
-                sd->chansrv = chansrv_pid;
-                sd->start_time = time(NULL);
-
-                if (process_startup_wait_time(sd) == 0)
-                {
-                    // Tell the caller we've started
-                    LOG(LOG_LEVEL_INFO,
-                        "Session in progress on display :%d. Waiting until the "
-                        "window manager (pid %d) exits to end the session",
-                        s->display, window_manager_pid);
-
-                    status = E_SCP_SCREATE_OK;
-                }
-                else
-                {
-                    LOG(LOG_LEVEL_ERROR,
-                        "Session failed during startup wait time");
-                    status = E_SCP_SCREATE_SESSION_FAIL;
-                }
-            }
-        }
-    }
-
-    return status;
+    return E_SCP_SCREATE_OK;
 }
-
 
 /******************************************************************************/
 enum scp_screate_status
@@ -826,22 +731,26 @@ session_start(struct login_info *login_info,
 {
     enum scp_screate_status status = E_SCP_SCREATE_GENERAL_ERROR;
     /* Create the session_data struct first */
-    struct session_data *sd = session_data_new(sp);
-    if (sd == NULL)
+    struct session_data *self = session_base_new(sp);
+    if (self == NULL)
     {
         status = E_SCP_SCREATE_NO_MEMORY;
     }
     else
     {
-        status = session_start_wrapped(login_info, sp, sd);
+        status = session_start_preamble(login_info, sp);
         if (status == E_SCP_SCREATE_OK)
         {
-            *session_data = sd;
-        }
-        else
-        {
-            *session_data = NULL;
-            session_data_free(sd);
+            status = self->vtable->start(self, login_info, sp);
+            if (status == E_SCP_SCREATE_OK)
+            {
+                *session_data = self;
+            }
+            else
+            {
+                *session_data = NULL;
+                session_data_free(self);
+            }
         }
     }
 
@@ -849,307 +758,56 @@ session_start(struct login_info *login_info,
 }
 
 /******************************************************************************/
-static int
-cleanup_sockets(int uid, int display)
+void
+session_data_free(struct session_data *self)
 {
-    LOG_DEVEL(LOG_LEVEL_INFO, "cleanup_sockets:");
-
-    char file[XRDP_SOCKETS_MAXPATH];
-    int error = 0;
-
-    g_snprintf(file, sizeof(file), CHANSRV_PORT_OUT_STR, uid, display);
-    if (g_file_exist(file))
-    {
-        LOG(LOG_LEVEL_DEBUG, "cleanup_sockets: deleting %s", file);
-        if (g_file_delete(file) == 0)
-        {
-            LOG(LOG_LEVEL_WARNING,
-                "cleanup_sockets: failed to delete %s (%s)",
-                file, g_get_strerror());
-            error++;
-        }
-    }
-
-    g_snprintf(file, sizeof(file), CHANSRV_PORT_IN_STR, uid, display);
-    if (g_file_exist(file))
-    {
-        LOG(LOG_LEVEL_DEBUG, "cleanup_sockets: deleting %s", file);
-        if (g_file_delete(file) == 0)
-        {
-            LOG(LOG_LEVEL_WARNING,
-                "cleanup_sockets: failed to delete %s (%s)",
-                file, g_get_strerror());
-            error++;
-        }
-    }
-
-    g_snprintf(file, sizeof(file), XRDP_CHANSRV_STR, uid, display);
-    if (g_file_exist(file))
-    {
-        LOG(LOG_LEVEL_DEBUG, "cleanup_sockets: deleting %s", file);
-        if (g_file_delete(file) == 0)
-        {
-            LOG(LOG_LEVEL_WARNING,
-                "cleanup_sockets: failed to delete %s (%s)",
-                file, g_get_strerror());
-            error++;
-        }
-    }
-
-    g_snprintf(file, sizeof(file), CHANSRV_API_STR, uid, display);
-    if (g_file_exist(file))
-    {
-        LOG(LOG_LEVEL_DEBUG, "cleanup_sockets: deleting %s", file);
-        if (g_file_delete(file) == 0)
-        {
-            LOG(LOG_LEVEL_WARNING,
-                "cleanup_sockets: failed to delete %s (%s)",
-                file, g_get_strerror());
-            error++;
-        }
-    }
-
-    /* the following files should be deleted by xorgxrdp
-     * but just in case the deletion failed */
-
-    g_snprintf(file, sizeof(file), XRDP_X11RDP_STR, uid, display);
-    if (g_file_exist(file))
-    {
-        LOG(LOG_LEVEL_DEBUG, "cleanup_sockets: deleting %s", file);
-        if (g_file_delete(file) == 0)
-        {
-            LOG(LOG_LEVEL_WARNING,
-                "cleanup_sockets: failed to delete %s (%s)",
-                file, g_get_strerror());
-            error++;
-        }
-    }
-
-    g_snprintf(file, sizeof(file), XRDP_DISCONNECT_STR, uid, display);
-    if (g_file_exist(file))
-    {
-        LOG(LOG_LEVEL_DEBUG, "cleanup_sockets: deleting %s", file);
-        if (g_file_delete(file) == 0)
-        {
-            LOG(LOG_LEVEL_WARNING,
-                "cleanup_sockets: failed to delete %s (%s)",
-                file, g_get_strerror());
-            error++;
-        }
-    }
-
-    return error;
-}
-
-/******************************************************************************/
-static void
-exit_status_to_str(const struct proc_exit_status *e, char buff[], int bufflen)
-{
-    switch (e->reason)
-    {
-        case E_PXR_STATUS_CODE:
-            if (e->val == 0)
-            {
-                g_snprintf(buff, bufflen, "exit code zero");
-            }
-            else
-            {
-                g_snprintf(buff, bufflen, "non-zero exit code %d", e->val);
-            }
-            break;
-
-        case E_PXR_SIGNAL:
-        {
-            char sigstr[MAXSTRSIGLEN];
-            g_snprintf(buff, bufflen, "signal %s",
-                       g_sig2text(e->val, sigstr));
-        }
-        break;
-
-        default:
-            g_snprintf(buff, bufflen, "an unexpected error");
-            break;
-    }
-}
-
-/******************************************************************************/
-/**
- * Processes an exited child
- *
- * The PID of the child process is removed from the session_data.
- *
- * @param sd session_data for this session
- * @param pid PID of exited process
- * @param e Exit status of the exited process
- */
-static void
-process_child_exit(struct session_data *sd,
-                   int pid,
-                   const struct proc_exit_status *e)
-{
-    if (pid == sd->x_server)
-    {
-        LOG(LOG_LEVEL_INFO, "X server pid %d on display :%d finished",
-            sd->x_server, sd->params.display);
-        sd->x_server = -1;
-        // No other action - window manager should be going soon
-    }
-    else if (pid == sd->chansrv)
-    {
-        LOG(LOG_LEVEL_INFO,
-            "xrdp channel server pid %d on display :%d finished",
-            sd->chansrv, sd->params.display);
-        sd->chansrv = -1;
-    }
-    else if (pid == sd->win_mgr)
-    {
-        int wm_wait_time = time(NULL) - sd->start_time;
-
-        if (e->reason == E_PXR_STATUS_CODE && e->val == 0)
-        {
-            LOG(LOG_LEVEL_INFO,
-                "Window manager (pid %d, display %d) "
-                "finished normally in %d secs",
-                sd->win_mgr, sd->params.display, wm_wait_time);
-        }
-        else
-        {
-            char reason[128];
-            exit_status_to_str(e, reason, sizeof(reason));
-
-            LOG(LOG_LEVEL_WARNING, "Window manager (pid %d, display %d) "
-                "exited with %s. This "
-                "could indicate a window manager config problem",
-                sd->win_mgr, sd->params.display, reason);
-        }
-        if (wm_wait_time < 10)
-        {
-            /* This could be a config issue. Log a significant error */
-            LOG(LOG_LEVEL_WARNING, "Window manager (pid %d, display %d) "
-                "exited quickly (%d secs). This could indicate a window "
-                "manager config problem",
-                sd->win_mgr, sd->params.display, wm_wait_time);
-        }
-
-        utmp_logout(sd->win_mgr, sd->params.display, e);
-        sd->win_mgr = -1;
-
-        if (sd->x_server > 0)
-        {
-            LOG(LOG_LEVEL_INFO, "Terminating X server (pid %d) on display :%d",
-                sd->x_server, sd->params.display);
-            g_sigterm(sd->x_server);
-        }
-
-        if (sd->chansrv > 0)
-        {
-            LOG(LOG_LEVEL_INFO, "Terminating the xrdp channel server (pid %d) "
-                "on display :%d", sd->chansrv, sd->params.display);
-            g_sigterm(sd->chansrv);
-        }
-    }
-
-    if (!session_active(sd))
-    {
-        cleanup_sockets(g_login_info->uid, sd->params.display);
-    }
+    session_base_destroy(self);
 }
 
 /******************************************************************************/
 void
-session_process_sigchld_event(struct session_data *sd)
+session_process_sigchld_event(struct session_data *self)
 {
-    struct proc_exit_status e;
-    int pid;
-
-    // Check for any finished children
-    while ((pid = g_waitchild(&e)) > 0)
-    {
-        process_child_exit(sd, pid, &e);
-    }
+    // The base class does this, as the base class method needs to be called
+    // from other base class methods.
+    session_base_process_sigchld_event(self);
 }
 
 /******************************************************************************/
 unsigned int
-session_active(const struct session_data *sd)
+session_active(const struct session_data *self)
 {
-    return
-        (sd == NULL)
-        ? 0
-        : (sd->win_mgr > 0) + (sd->x_server > 0) + (sd->chansrv > 0);
+    return self->vtable->active_processes(self);
 }
 
 /******************************************************************************/
 time_t
-session_get_start_time(const struct session_data *sd)
+session_get_start_time(const struct session_data *self)
 {
-    return (sd == NULL) ? 0 : sd->start_time;
+    return self->start_time;
+}
+
+/******************************************************************************/
+const char *
+session_get_display(const struct session_data *self)
+{
+    return self->display;
 }
 
 /******************************************************************************/
 unsigned int
-session_get_connect_count(const struct session_data *sd)
+session_increment_connect_count(struct session_data *self)
 {
-    return (sd == NULL) ? 0 : sd->connect_count;
-}
-
-/******************************************************************************/
-unsigned int
-session_increment_connect_count(struct session_data *sd)
-{
-    return (sd == NULL) ? 0 : sd->connect_count++;
-}
-
-/******************************************************************************/
-const struct session_parameters *
-session_get_parameters(const struct session_data *sd)
-{
-    return (sd == NULL) ? NULL : &sd->params;
-}
-
-/******************************************************************************/
-void
-session_send_term(struct session_data *sd, int wait_for_all)
-{
-    if (sd != NULL)
-    {
-        if (sd->win_mgr > 0)
-        {
-            // Killing the window manager only is appropriate here.
-            // When we process SIGCHLD for the window manager, we
-            // will kill other processes as appropriate
-            g_sigterm(sd->win_mgr);
-        }
-
-        if (wait_for_all)
-        {
-            while (session_active(sd))
-            {
-                /* Don't check SIGTERM - we shouldn't be here long */
-                if (g_obj_wait(&g_sigchld_event, 1, NULL, 0, -1) != 0)
-                {
-                    /* should not get here */
-                    LOG(LOG_LEVEL_WARNING, "session_send_term: "
-                        "Unexpected error from g_obj_wait()");
-                    g_sleep(100);
-                }
-                else
-                {
-                    g_reset_wait_obj(g_sigchld_event);
-                    session_process_sigchld_event(sd);
-                }
-            }
-        }
-    }
+    return self->connect_count++;
 }
 
 /******************************************************************************/
 static void
-start_reconnect_script(const struct login_info *login_info,
-                       const struct session_parameters *s,
+start_reconnect_script(struct session_data *self,
+                       const struct login_info *login_info,
                        void *closure)
 {
-    env_set_user(login_info->uid, 0, s->display,
+    env_set_user(login_info->uid, 0,
                  g_cfg->env_names,
                  g_cfg->env_values);
 
@@ -1171,14 +829,14 @@ start_reconnect_script(const struct login_info *login_info,
         LOG_DEVEL_LEAKING_FDS("reconnect script", 3, -1);
 
         LOG(LOG_LEVEL_INFO,
-            "Starting session reconnection script on display %d: %s",
-            s->display, g_cfg->reconnect_sh);
+            "Starting session reconnection script on display %s: %s",
+            self->display, g_cfg->reconnect_sh);
         g_execlp3(g_cfg->reconnect_sh, g_cfg->reconnect_sh, 0);
 
         /* should not get here */
         LOG(LOG_LEVEL_ERROR,
-            "Error starting session reconnection script on display %d: %s",
-            s->display, g_cfg->reconnect_sh);
+            "Error starting session reconnection script on display %s: %s",
+            self->display, g_cfg->reconnect_sh);
     }
     else
     {
@@ -1190,103 +848,63 @@ start_reconnect_script(const struct login_info *login_info,
 
 /******************************************************************************/
 void
-session_run_reconnect_script(const struct login_info *login_info,
-                             const struct session_data *sd,
+session_run_reconnect_script(struct session_data *self,
+                             const struct login_info *login_info,
                              const char *vars[])
 {
-    if (fork_child(start_reconnect_script,
-                   login_info, &sd->params, sd->x_server, (void *)vars) < 0)
+    if (session_base_fork_child(self,
+                                login_info,
+                                self->vtable->getpgid(self),
+                                start_reconnect_script,
+                                (void *)vars) < 0)
     {
         LOG(LOG_LEVEL_ERROR, "Failed to fork for session reconnection script");
     }
 }
 
 /******************************************************************************/
-int
-session_get_display_server_fd(const struct login_info *login_info,
-                              const struct session_data *sd)
+const struct session_parameters *
+session_get_parameters(const struct session_data *self)
 {
-    char portname[XRDP_SOCKETS_MAXPATH];
-    const char *localhost = "localhost"; // Ignored for TRANS_MODE_UNIX
-    int socket_mode;
+    return self->params;
+}
 
-    int rv = -1;
-
-    if (sd->x_server <= 0)
-    {
-        LOG(LOG_LEVEL_ERROR,
-            "Request to connect to display server :%u"
-            " which has exited", sd->params.display);
-    }
-    else
-    {
-        switch (sd->params.type)
-        {
-            case SCP_SESSION_TYPE_XVNC:
-                socket_mode = TRANS_MODE_TCP;
-                snprintf(portname, sizeof(portname), "%u",
-                         5900 + sd->params.display);
-                break;
-
-            case SCP_SESSION_TYPE_XVNC_UDS:
-            case SCP_SESSION_TYPE_XORG:
-                socket_mode = TRANS_MODE_UNIX;
-                snprintf(portname, sizeof(portname), XRDP_X11RDP_STR,
-                         login_info->uid, (int)sd->params.display);
-
-                break;
-
-            default:
-                LOG(LOG_LEVEL_ERROR, "Unsupported session type %d for connect",
-                    sd->params.type);
-                portname[0] = '\0';
-        }
-
-        if (portname[0] != '\0')
-        {
-            // Use the transport library to get the fd
-            struct trans *t = trans_create(socket_mode, 8 * 8192, 8192);
-            if (t == NULL)
-            {
-                LOG(LOG_LEVEL_ERROR, "Out of memory creating transport");
-            }
-            else if (trans_connect(t, localhost, portname, 3000) != 0)
-            {
-                LOG(LOG_LEVEL_ERROR, "Can't connect to display server :%u [%s]",
-                    sd->params.display,
-                    g_get_strerror());
-            }
-            else
-            {
-                rv = t->sck;
-                t->sck = -1;
-            }
-            trans_delete(t);
-        }
-    }
-
-    return rv;
+/******************************************************************************/
+void
+session_send_term(struct session_data *self, int wait_for_all)
+{
+    // The base class does this, as the base class method needs to be called
+    // from other base class methods.
+    session_base_send_term(self, wait_for_all);
 }
 
 /******************************************************************************/
 int
-session_get_chansrv_fd(const struct login_info *login_info,
-                       const struct session_data *sd)
+session_get_display_server_fd(const struct session_data *self,
+                              const struct login_info *login_info)
+{
+    return self->vtable->get_display_server_fd(self, login_info);
+}
+
+/******************************************************************************/
+int
+session_get_chansrv_fd(const struct session_data *self,
+                       const struct login_info *login_info)
 {
     char portname[XRDP_SOCKETS_MAXPATH];
 
     int rv = -1;
 
-    if (sd->chansrv <= 0)
+    if (self->chansrv_pid <= 0)
     {
         LOG(LOG_LEVEL_ERROR,
-            "Request to connect to chansrv :%u"
-            " which has exited", sd->params.display);
+            "Request to connect to chansrv on display %s"
+            " which has exited", self->display);
     }
     else
     {
-        snprintf(portname, sizeof(portname),
-                 XRDP_CHANSRV_STR, login_info->uid, (int)sd->params.display);
+        g_snprintf(portname, sizeof(portname), XRDP_CHANSRV_STR,
+                   login_info->uid, STRIP_COLON(self->display));
 
         // Use the transport library to get the fd
         struct trans *t = trans_create(TRANS_MODE_UNIX, 8192, 8192);
@@ -1296,8 +914,8 @@ session_get_chansrv_fd(const struct login_info *login_info,
         }
         else if (trans_connect(t, NULL, portname, 10 * 1000) != 0)
         {
-            LOG(LOG_LEVEL_ERROR, "Can't connect to chansrv :%u [%s]",
-                sd->params.display,
+            LOG(LOG_LEVEL_ERROR, "Can't connect to chansrv on %s [%s]",
+                self->display,
                 g_get_strerror());
         }
         else
