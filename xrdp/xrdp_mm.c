@@ -360,7 +360,8 @@ xrdp_mm_create_session(struct xrdp_mm *self)
                  self->wm->screen->height,
                  xserverbpp,
                  self->wm->client_info->program,
-                 self->wm->client_info->directory);
+                 self->wm->client_info->directory,
+                 self->wm->pro_layer->lis_layer->startup_params->port);
     }
 
     return rv;

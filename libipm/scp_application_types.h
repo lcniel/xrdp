@@ -79,7 +79,8 @@ struct scp_session_info
     char *start_ip_addr; ///< IP address of starting client
     char *client_ip;  ///< Current client IP
     char *client_name; ///< Current client name
-    time_t last_connect_disconnect; ///< Time of last client connect/disconnect
+    time_t last_connect_disconnect; ///< Time of last client connect/disconnect}
+    char *xrdp_listening_port; ///< Port xrdp listened on when setting up session
 };
 
 /**

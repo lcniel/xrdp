@@ -36,7 +36,7 @@
  */
 struct session_parameters
 {
-    int x11_display;  // >= for X11 only
+    unsigned int display;
     enum scp_session_type type;
     unsigned short width;
     unsigned short height;
@@ -44,6 +44,7 @@ struct session_parameters
     struct guid guid;
     const char *shell;  // Must not be NULL
     const char *directory;  // Must not be NULL
+    const char *port;  //Must not be NULL
 };
 
 /**

@@ -104,6 +104,7 @@ struct session_params
     const char *ip_addr;
 
     const char *username;
+    const char *port;
     char password[MAX_PASSWORD_LEN + 1];
 };
 
@@ -182,6 +183,7 @@ usage(void)
     g_printf("    -t <type>             Default:%s\n", DEFAULT_SESSION_TYPE);
     g_printf("    -D <directory>        Default: $HOME\n"
              "    -S <shell>            Default: Defined window manager\n"
+             "    -P <port>             Default: Empty\n"
              "    -p <password>         TESTING ONLY - DO NOT USE IN PRODUCTION\n"
              "    -F <file-descriptor>  Read password from this file descriptor\n"
              "    -c <sesman_ini>       Alternative sesman.ini file\n");
@@ -190,6 +192,9 @@ usage(void)
     g_printf("\nIf username is omitted, the current user is used.\n"
              "If username is provided, password is needed.\n"
              "    Password is prompted for if -p or -F are not specified\n");
+    g_printf("\nThe port is only used to associate the session with an xrdp\n"
+             "\ndaemon listening on a particular port or set of ports.\n"
+             "\nFor comparison purposes it is evaluated as a string.\n");
 }
 
 
@@ -298,11 +303,12 @@ parse_program_args(int argc, char *argv[], struct session_params *sp,
     sp->directory = "";
     sp->shell = "";
     sp->ip_addr = "";
+    sp->port = "";
 
     sp->username = NULL;
     sp->password[0] = '\0';
 
-    while ((opt = getopt(argc, argv, "g:b:s:t:D:S:p:F:c:")) != -1)
+    while ((opt = getopt(argc, argv, "g:b:s:t:D:S:p:F:c:P:")) != -1)
     {
         switch (opt)
         {
@@ -366,6 +372,10 @@ parse_program_args(int argc, char *argv[], struct session_params *sp,
                         params_ok = 0;
                     }
                 }
+                break;
+
+            case 'P':
+                sp->port = optarg;
                 break;
 
             case 'c':
@@ -492,13 +502,14 @@ send_create_session_request(struct trans *t, const struct session_params *sp)
 {
     LOG(LOG_LEVEL_DEBUG,
         "width:%d  height:%d  bpp:%d  code:%d\n"
-        "directory:\"%s\" shell:\"%s\"",
+        "directory:\"%s\" shell:\"%s\" port:\"%s\"",
         sp->width, sp->height, sp->bpp, sp->session_type,
-        sp->directory, sp->shell);
+        sp->directory, sp->shell, sp->port);
 
     return scp_send_create_session_request(
                t, sp->session_type,
-               sp->width, sp->height, sp->bpp, sp->shell, sp->directory);
+               sp->width, sp->height, sp->bpp, sp->shell,
+               sp->directory, sp->port);
 }
 
 /**************************************************************************//**

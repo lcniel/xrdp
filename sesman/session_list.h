@@ -71,6 +71,10 @@ struct session_item
     char client_ip[MAX_PEER_ADDRSTRLEN];
     char client_name[INFO_CLIENT_NAME_BYTES_UTF8];
     time_t last_connect_disconnect;
+    /* allow a user to run multiple sessions
+     * by running multiple instances of xrdp
+     * listening to different ports */
+    char xrdp_listening_port[1024];
 };
 
 /**
@@ -140,7 +144,8 @@ session_list_get_bydata(uid_t uid,
                         unsigned short width,
                         unsigned short height,
                         unsigned char  bpp,
-                        const char *ip_addr);
+                        const char *ip_addr,
+                        const char *port);
 
 /**
  * @brief retrieves session descriptions

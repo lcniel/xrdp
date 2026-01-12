@@ -419,18 +419,20 @@ scp_send_create_session_request(struct trans *trans,
                                 unsigned short height,
                                 unsigned char bpp,
                                 const char *shell,
-                                const char *directory)
+                                const char *directory,
+                                const char *port)
 {
     return libipm_msg_out_simple_send(
                trans,
                (int)E_SCP_CREATE_SESSION_REQUEST,
-               "yqqyss",
+               "yqqysss",
                type,
                width,
                height,
                bpp,
                shell,
-               directory);
+               directory,
+               port);
 }
 
 /*****************************************************************************/
@@ -442,7 +444,8 @@ scp_get_create_session_request(struct trans *trans,
                                unsigned short *height,
                                unsigned char *bpp,
                                const char **shell,
-                               const char **directory)
+                               const char **directory,
+                               const char **port)
 {
     /* Intermediate values */
     uint8_t i_type;
@@ -452,13 +455,14 @@ scp_get_create_session_request(struct trans *trans,
 
     int rv = libipm_msg_in_parse(
                  trans,
-                 "yqqyss",
+                 "yqqysss",
                  &i_type,
                  &i_width,
                  &i_height,
                  &i_bpp,
                  shell,
-                 directory);
+                 directory,
+                 port);
 
     if (rv == 0)
     {
@@ -745,7 +749,7 @@ scp_send_list_sessions_response(
         rv = libipm_msg_out_simple_send(
                  trans,
                  (int)E_SCP_LIST_SESSIONS_RESPONSE,
-                 "iisyqqyxisssx",
+                 "iisyqqyxisssxs",
                  status,
                  info->sid,
                  info->display,
@@ -758,7 +762,8 @@ scp_send_list_sessions_response(
                  info->start_ip_addr,
                  info->client_ip,
                  info->client_name,
-                 (int64_t)info->last_connect_disconnect);
+                 (int64_t)info->last_connect_disconnect,
+                 info->xrdp_listening_port);
     }
 
     return rv;
@@ -799,10 +804,11 @@ scp_get_list_sessions_response(
             char *i_client_ip;
             char *i_client_name;
             int64_t i_last_connect_disconnect;
+            char *i_port;
 
             rv = libipm_msg_in_parse(
                      trans,
-                     "isyqqyxisssx",
+                     "isyqqyxisssxs",
                      &i_sid,
                      &i_display,
                      &i_type,
@@ -814,7 +820,8 @@ scp_get_list_sessions_response(
                      &i_start_ip_addr,
                      &i_client_ip,
                      &i_client_name,
-                     &i_last_connect_disconnect);
+                     &i_last_connect_disconnect,
+                     &i_port);
 
             if (rv == 0)
             {
@@ -824,7 +831,8 @@ scp_get_list_sessions_response(
                                    g_strlen(i_display) + 1 +
                                    g_strlen(i_start_ip_addr) + 1 +
                                    g_strlen(i_client_ip) + 1 +
-                                   g_strlen(i_client_name) + 1;
+                                   g_strlen(i_client_name) + 1 +
+                                   g_strlen(i_port) + 1;
                 if ((p = (struct scp_session_info *)g_malloc(len, 1)) == NULL)
                 {
                     *status = E_SCP_LS_NO_MEMORY;
@@ -854,6 +862,7 @@ scp_get_list_sessions_response(
                     COPY_STRING(p->client_ip, i_client_ip);
                     COPY_STRING(p->client_name, i_client_name);
                     p->last_connect_disconnect = i_last_connect_disconnect;
+                    COPY_STRING(p->xrdp_listening_port, i_port);
 #undef COPY_STRING
                 }
             }

@@ -81,6 +81,7 @@ session_data_new(const struct session_parameters *sp)
     // What string length do we need?
     string_length += g_strlen(sp->shell) + 1;
     string_length += g_strlen(sp->directory) + 1;
+    string_length += g_strlen(sp->port) + 1;
 
     struct session_data *sd = (struct session_data *)g_malloc(sizeof(*sd) + string_length, 0);
 
@@ -109,6 +110,7 @@ session_data_new(const struct session_parameters *sp)
 
         COPY_STRING(sd->params.shell, sp->shell);
         COPY_STRING(sd->params.directory, sp->directory);
+        COPY_STRING(sd->params.port, sp->port);
 
 #undef COPY_STRING
     }
