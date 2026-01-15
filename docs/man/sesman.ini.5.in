@@ -236,7 +236,7 @@ Alternatively combine one-or-more of the following options
 .HP 4
 \fBI\fR - Sessions are separated by IP address
 .HP 4
-\fBI\fR - Sessions are separated by port configuration of XRDP server
+\fBP\fR - Sessions are separated by port configuration of XRDP server
 .RE
 
 .IP

@@ -172,7 +172,7 @@ ercp_msg_in_reset(struct trans *trans);
  * @param guid Session GUID
  * @param start_ip_addr Starting IP address of client
  * @param start_time Session start time
- * @param port Port listend to by xrdp client
+ * @param port Port listened to by xrdp client
  * @return != 0 for error
  */
 int

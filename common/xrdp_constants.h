@@ -44,6 +44,12 @@
 #define MAX_PEER_ADDRSTRLEN 46
 
 /**
+ * Max length of session description buffer containing a string describing
+ * the port or series of ports that xrdp listens on
+ **/
+#define MAX_XRDP_LISTEN_PORTLEN 256
+
+/**
  * Size of buffer including terminator for a socket description, as
  * returned by g_sck_get_peer_description()
  * Currently the largest is an IPv6 address (INET6_ADDRSTRLEN), plus

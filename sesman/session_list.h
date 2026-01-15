@@ -74,7 +74,7 @@ struct session_item
     /* allow a user to run multiple sessions
      * by running multiple instances of xrdp
      * listening to different ports */
-    char xrdp_listening_port[1024];
+    char xrdp_listening_port[MAX_XRDP_LISTEN_PORTLEN];
 };
 
 /**
