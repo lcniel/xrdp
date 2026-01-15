@@ -84,7 +84,7 @@ struct scp_list_item
     uid_t uid; ///< User
     char *username; ///< Username from UID (at time of logon)
     char start_ip_addr[MAX_PEER_ADDRSTRLEN];
-    char xrdp_listen_port[MAX_XRDP_LISTEN_PORTLEN]; ///< Port that xrdp listens on
+    char xrdp_instance_name[MAX_XRDP_INSTANCE_NAMELEN]; ///< Port that xrdp listens on
     int is_admin;
     int create_session_in_progress; ///< Already handling a create_session
     /// Display allocated for session (-1 if N/A)

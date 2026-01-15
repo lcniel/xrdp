@@ -279,7 +279,7 @@ eicp_send_logout_request(struct trans *trans);
  * @param bpp Session bits-per-pixel (ignored for Xorg sessions)
  * @param shell User program to run. May be ""
  * @param directory Directory to run the program in. May be ""
- * @param port Port(s) that xrdp listens on. May be ""
+ * @param instance_name Name of xrdp instance. May be ""
  * @return != 0 for error
  *
  * The UID for the session must have been set by a previous call.
@@ -300,7 +300,7 @@ eicp_send_create_session_request(struct trans *trans,
                                  unsigned char bpp,
                                  const char *shell,
                                  const char *directory,
-                                 const char *port);
+                                 const char *instance_name);
 
 
 /**
@@ -314,7 +314,7 @@ eicp_send_create_session_request(struct trans *trans,
  * @param[out] bpp Session bits-per-pixel (ignored for Xorg sessions)
  * @param[out] shell User program to run. May be ""
  * @param[out] directory Directory to run the program in. May be ""
- * @param[out] port Port(s) that xrdp listens on. May be ""
+ * @param[out] instance_name Name of xrdp instance. May be ""
  * @return != 0 for error
  *
  * Returned string pointers are valid until scp_msg_in_reset() is
@@ -329,7 +329,7 @@ eicp_get_create_session_request(struct trans *trans,
                                 unsigned char *bpp,
                                 const char **shell,
                                 const char **directory,
-                                const char **port);
+                                const char **instance_name);
 
 /**
  * Send an E_EICP_CREATE_SESSION_RESPONSE

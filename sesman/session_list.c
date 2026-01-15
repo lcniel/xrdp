@@ -186,7 +186,7 @@ session_list_get_bydata(uid_t uid,
                         unsigned short height,
                         unsigned char  bpp,
                         const char *ip_addr,
-                        const char *port)
+                        const char *instance_name)
 {
     char policy_str[64];
     int policy = g_cfg->sess.policy;
@@ -197,9 +197,9 @@ session_list_get_bydata(uid_t uid,
         ip_addr = "";
     }
 
-    if (port == NULL)
+    if (instance_name == NULL)
     {
-        port = "";
+        instance_name = "";
     }
 
     if ((policy & SESMAN_CFG_SESS_POLICY_DEFAULT) != 0)
@@ -217,7 +217,7 @@ session_list_get_bydata(uid_t uid,
         __func__,
         policy_str, SCP_SESSION_TYPE_TO_STR(type),
         uid, bpp, width, height,
-        ip_addr, port);
+        ip_addr, instance_name);
 
     /* 'Separate' policy never matches */
     if (policy & SESMAN_CFG_SESS_POLICY_SEPARATE)
@@ -236,13 +236,13 @@ session_list_get_bydata(uid_t uid,
         }
 
         LOG(LOG_LEVEL_DEBUG,
-            "%s: try %p type=%s U=%d B=%d D=(%dx%d) I=%s P=%s",
+            "%s: try %p type=%s U=%d B=%d D=(%dx%d) I=%s N=%s",
             __func__,
             si,
             SCP_SESSION_TYPE_TO_STR(si->type),
             si->uid, si->bpp,
             si->start_width, si->start_height,
-            si->start_ip_addr, si->xrdp_listening_port);
+            si->start_ip_addr, si->xrdp_instance_name);
 
         if (si->type != type)
         {
@@ -281,11 +281,11 @@ session_list_get_bydata(uid_t uid,
             continue;
         }
 
-        if ((policy & SESMAN_CFG_SESS_POLICY_P) &&
-                g_strcmp(si->xrdp_listening_port, port) != 0)
+        if ((policy & SESMAN_CFG_SESS_POLICY_N) &&
+                g_strcmp(si->xrdp_instance_name, instance_name) != 0)
         {
             LOG(LOG_LEVEL_DEBUG,
-                "%s: Ports don't match for 'P' policy", __func__);
+                "%s: Instance names don't match for 'N' policy", __func__);
             continue;
         }
 
@@ -363,14 +363,14 @@ session_list_get_byuid(const uid_t *uid, unsigned int *cnt, unsigned int flags)
             sess[index].client_ip = g_strdup(si->client_ip);
             sess[index].client_name = g_strdup(si->client_name);
             sess[index].last_connect_disconnect = si->last_connect_disconnect;
-            sess[index].xrdp_listening_port = g_strdup(si->xrdp_listening_port);
+            sess[index].xrdp_instance_name = g_strdup(si->xrdp_instance_name);
 
             /* Check for string allocation failures */
             if (sess[index].display == NULL ||
                     sess[index].start_ip_addr == NULL ||
                     sess[index].client_ip == NULL ||
                     sess[index].client_name == NULL ||
-                    sess[index].xrdp_listening_port == NULL)
+                    sess[index].xrdp_instance_name == NULL)
             {
                 free_session_info_list(sess, *cnt);
                 (*cnt) = 0;
@@ -416,7 +416,7 @@ free_session_info_list(struct scp_session_info *sesslist, unsigned int cnt)
             g_free(sesslist[i].start_ip_addr);
             g_free(sesslist[i].client_ip);
             g_free(sesslist[i].client_name);
-            g_free(sesslist[i].xrdp_listening_port);
+            g_free(sesslist[i].xrdp_instance_name);
         }
     }
 

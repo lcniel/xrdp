@@ -44,7 +44,7 @@ process_session_announce_event(struct session_item *si)
     int rv;
     const char *start_ip_addr;
     const char *display;
-    const char *port;
+    const char *instance_name;
 
     rv = ercp_get_session_announce_event(si->sesexec_trans,
                                          &display,
@@ -56,14 +56,14 @@ process_session_announce_event(struct session_item *si)
                                          &si->guid,
                                          &start_ip_addr,
                                          &si->start_time,
-                                         &port);
+                                         &instance_name);
     if (rv == 0)
     {
         snprintf(si->start_ip_addr, sizeof(si->start_ip_addr),
                  "%s", start_ip_addr);
         strlcpy(si->display, display, sizeof(si->display));
-        snprintf(si->xrdp_listening_port, sizeof(si->xrdp_listening_port),
-                 "%s", port);
+        snprintf(si->xrdp_instance_name, sizeof(si->xrdp_instance_name),
+                 "%s", instance_name);
 
         si->state = E_SESSION_RUNNING;
 

@@ -166,9 +166,9 @@ print_session(const struct scp_session_info *s)
                (s->last_connect_disconnect == 0) ? "-\n" :
                ctime(&s->last_connect_disconnect));
     }
-    if (s->xrdp_listening_port[0] != '\0')
+    if (s->xrdp_instance_name[0] != '\0')
     {
-        printf("\txrdp listening port(s): %s\n", s->xrdp_listening_port);
+        printf("\txrdp instance name: %s\n", s->xrdp_instance_name);
     }
     g_free(username);
 }

@@ -280,7 +280,7 @@ eicp_send_create_session_request(struct trans *trans,
                                  unsigned char bpp,
                                  const char *shell,
                                  const char *directory,
-                                 const char *port)
+                                 const char *instance_name)
 {
     return libipm_msg_out_simple_send(
                trans,
@@ -293,7 +293,7 @@ eicp_send_create_session_request(struct trans *trans,
                bpp,
                shell,
                directory,
-               port);
+               instance_name);
 }
 
 /*****************************************************************************/
@@ -307,7 +307,7 @@ eicp_get_create_session_request(struct trans *trans,
                                 unsigned char *bpp,
                                 const char **shell,
                                 const char **directory,
-                                const char **port)
+                                const char **instance_name)
 {
     /* Intermediate values */
     int32_t i_x11_display;
@@ -326,7 +326,7 @@ eicp_get_create_session_request(struct trans *trans,
                  &i_bpp,
                  shell,
                  directory,
-                 port);
+                 instance_name);
 
     if (rv == 0)
     {

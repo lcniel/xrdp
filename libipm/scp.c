@@ -420,7 +420,7 @@ scp_send_create_session_request(struct trans *trans,
                                 unsigned char bpp,
                                 const char *shell,
                                 const char *directory,
-                                const char *port)
+                                const char *instance_name)
 {
     return libipm_msg_out_simple_send(
                trans,
@@ -432,7 +432,7 @@ scp_send_create_session_request(struct trans *trans,
                bpp,
                shell,
                directory,
-               port);
+               instance_name);
 }
 
 /*****************************************************************************/
@@ -445,7 +445,7 @@ scp_get_create_session_request(struct trans *trans,
                                unsigned char *bpp,
                                const char **shell,
                                const char **directory,
-                               const char **port)
+                               const char **instance_name)
 {
     /* Intermediate values */
     uint8_t i_type;
@@ -462,7 +462,7 @@ scp_get_create_session_request(struct trans *trans,
                  &i_bpp,
                  shell,
                  directory,
-                 port);
+                 instance_name);
 
     if (rv == 0)
     {
@@ -763,7 +763,7 @@ scp_send_list_sessions_response(
                  info->client_ip,
                  info->client_name,
                  (int64_t)info->last_connect_disconnect,
-                 info->xrdp_listening_port);
+                 info->xrdp_instance_name);
     }
 
     return rv;
@@ -804,7 +804,7 @@ scp_get_list_sessions_response(
             char *i_client_ip;
             char *i_client_name;
             int64_t i_last_connect_disconnect;
-            char *i_port;
+            char *i_instance_name;
 
             rv = libipm_msg_in_parse(
                      trans,
@@ -821,7 +821,7 @@ scp_get_list_sessions_response(
                      &i_client_ip,
                      &i_client_name,
                      &i_last_connect_disconnect,
-                     &i_port);
+                     &i_instance_name);
 
             if (rv == 0)
             {
@@ -832,7 +832,7 @@ scp_get_list_sessions_response(
                                    g_strlen(i_start_ip_addr) + 1 +
                                    g_strlen(i_client_ip) + 1 +
                                    g_strlen(i_client_name) + 1 +
-                                   g_strlen(i_port) + 1;
+                                   g_strlen(i_instance_name) + 1;
                 if ((p = (struct scp_session_info *)g_malloc(len, 1)) == NULL)
                 {
                     *status = E_SCP_LS_NO_MEMORY;
@@ -862,7 +862,7 @@ scp_get_list_sessions_response(
                     COPY_STRING(p->client_ip, i_client_ip);
                     COPY_STRING(p->client_name, i_client_name);
                     p->last_connect_disconnect = i_last_connect_disconnect;
-                    COPY_STRING(p->xrdp_listening_port, i_port);
+                    COPY_STRING(p->xrdp_instance_name, i_instance_name);
 #undef COPY_STRING
                 }
             }

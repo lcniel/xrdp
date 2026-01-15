@@ -94,7 +94,7 @@ static const struct bitmask_char policy_bits[] =
     { SESMAN_CFG_SESS_POLICY_B, 'B'  },
     { SESMAN_CFG_SESS_POLICY_D, 'D'  },
     { SESMAN_CFG_SESS_POLICY_I, 'I'  },
-    { SESMAN_CFG_SESS_POLICY_P, 'P'  },
+    { SESMAN_CFG_SESS_POLICY_N, 'N'  },
     BITMASK_CHAR_END_OF_LIST
 };
 

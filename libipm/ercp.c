@@ -156,7 +156,7 @@ ercp_send_session_announce_event(struct trans *trans,
                                  const struct guid *guid,
                                  const char *start_ip_addr,
                                  time_t start_time,
-                                 const char *port)
+                                 const char *instance_name)
 {
     struct libipm_fsb guid_descriptor = { (void *)guid, sizeof(*guid) };
 
@@ -173,7 +173,7 @@ ercp_send_session_announce_event(struct trans *trans,
                &guid_descriptor,
                start_ip_addr,
                (int64_t)start_time,
-               port);
+               instance_name);
 }
 
 /*****************************************************************************/
@@ -189,7 +189,7 @@ ercp_get_session_announce_event(struct trans *trans,
                                 struct guid *guid,
                                 const char **start_ip_addr,
                                 time_t *start_time,
-                                const char **port)
+                                const char **instance_name)
 {
     /* Intermediate values */
     int32_t i_uid;
@@ -213,7 +213,7 @@ ercp_get_session_announce_event(struct trans *trans,
                  &guid_descriptor,
                  start_ip_addr,
                  &i_start_time,
-                 port);
+                 instance_name);
 
     if (rv == 0)
     {
