@@ -44,7 +44,7 @@
 #define MAX_PEER_ADDRSTRLEN 46
 
 /**
- * Max length of session description buffer containing a string describing
+ * Max length of buffer containing a string describing
  * the port or series of ports that xrdp listens on
  **/
 #define MAX_XRDP_LISTEN_PORTLEN 1024
