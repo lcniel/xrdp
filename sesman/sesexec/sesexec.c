@@ -317,11 +317,13 @@ sesexec_main_loop_cleanup(void)
 
     /* Don't allow sesexec to terminate with an active
        session, as we can't connect to such a session */
-    if (session_active(g_session_data))
-    {
-        LOG(LOG_LEVEL_INFO,
-            "Stopping session on xrdp-sesexec exit");
-        session_send_term(g_session_data, 1);
+    if (g_session_data != NULL) {
+        if (session_active(g_session_data))
+        {
+            LOG(LOG_LEVEL_INFO,
+                "Stopping session on xrdp-sesexec exit");
+            session_send_term(g_session_data, 1);
+        }
     }
     session_data_free(g_session_data);
 }

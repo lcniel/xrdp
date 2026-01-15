@@ -292,6 +292,7 @@ start_wayvnc(struct session_data *baseobj,
 {
     char execvpparams[2048];
     char sockname[XRDP_SOCKETS_MAXPATH];
+    char ctlname[XRDP_SOCKETS_MAXPATH];
 
     env_set_user(login_info->uid,
                  0,
@@ -311,9 +312,14 @@ start_wayvnc(struct session_data *baseobj,
     /* Get the VNC socket name */
     g_snprintf(sockname, sizeof(sockname), XRDP_X11RDP_STR,
                login_info->uid, baseobj->display);
+    g_snprintf(ctlname, sizeof(ctlname), "%s-%s", sockname, "ctl");
     if (g_file_exist(sockname))
     {
         (void)g_file_delete(sockname);
+    }
+    if (g_file_exist(ctlname))
+    {
+        (void)g_file_delete(ctlname);
     }
 
     struct list *params = list_create();
@@ -323,6 +329,8 @@ start_wayvnc(struct session_data *baseobj,
                                    wayvnc,
                                    "-u",
                                    sockname,
+				   "-S",
+				   ctlname,
                                    NULL))
     {
         LOG(LOG_LEVEL_ERROR, "Out of memory allocating wayvnc params");
@@ -738,6 +746,11 @@ active_processes(const struct session_data *baseobj)
 {
     // Downcast the base object pointer to a pointer to the labwc session object
     struct session_data_labwc *self = (struct session_data_labwc *)baseobj;
+
+    LOG(LOG_LEVEL_DEBUG, "chansrv_pid: %d", self->base.chansrv_pid);
+    LOG(LOG_LEVEL_DEBUG, "labwc_pid: %d", self->labwc_pid);
+    LOG(LOG_LEVEL_DEBUG, "wayvnc_pid: %d", self->wayvnc_pid);
+    LOG(LOG_LEVEL_DEBUG, "win_mgr_pid: %d", self->win_mgr_pid);
 
     return (self->base.chansrv_pid > 0) + (self->labwc_pid > 0) +
            (self->wayvnc_pid > 0) + (self->win_mgr_pid > 0);
