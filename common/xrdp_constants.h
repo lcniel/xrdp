@@ -47,7 +47,7 @@
  * Max length of session description buffer containing a string describing
  * the port or series of ports that xrdp listens on
  **/
-#define MAX_XRDP_LISTEN_PORTLEN 256
+#define MAX_XRDP_LISTEN_PORTLEN 1024
 
 /**
  * Size of buffer including terminator for a socket description, as
