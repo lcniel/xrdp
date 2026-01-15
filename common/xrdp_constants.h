@@ -50,6 +50,12 @@
 #define MAX_XRDP_LISTEN_PORTLEN 1024
 
 /**
+ * Max length of buffer containing an instance name used to
+ * tag sessions for discrimination on reconnection.
+ **/
+#define MAX_XRDP_INSTANCE_NAMELEN 1024
+
+/**
  * Size of buffer including terminator for a socket description, as
  * returned by g_sck_get_peer_description()
  * Currently the largest is an IPv6 address (INET6_ADDRSTRLEN), plus
