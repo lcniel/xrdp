@@ -41,7 +41,7 @@ copy_session_parameters(const struct session_parameters *sp)
     // What string length do we need?
     unsigned int string_length = 0;
     string_length += strlen(sp->shell) + 1;
-    string_length += strlen(sp->shell) + 1;
+    string_length += strlen(sp->directory) + 1;
     string_length += strlen(sp->instance_name) + 1;
 
     cp = (struct session_parameters *)malloc(sizeof(*cp) + string_length);
