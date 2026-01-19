@@ -589,11 +589,22 @@ xrdp_sec_process_logon_info(struct xrdp_sec *self, struct stream *s)
             return 1;
         }
     }
-
-    if (ts_info_utf16_in(s, len_password, self->rdp_layer->client_info.password, sizeof(self->rdp_layer->client_info.password)) != 0)
+    if (flags & RDP_LOGON_AUTO)
     {
-        LOG(LOG_LEVEL_ERROR, "ERROR reading password");
-        return 1;
+        if (ts_info_utf16_in(s, len_password, self->rdp_layer->client_info.password, sizeof(self->rdp_layer->client_info.password)) != 0)
+        {
+            LOG(LOG_LEVEL_ERROR, "ERROR reading password");
+            return 1;
+        }
+    }
+    else
+    {
+        // Skip the password
+        if (!s_check_rem_and_log(s, len_password + 2, "Parsing [MS-RDPBCGR] TS_INFO_PACKET Password"))
+        {
+            return 1;
+        }
+        in_uint8s(s, len_password + 2);
     }
     if (self->rdp_layer->client_info.enable_token_login
             && len_user > 0
