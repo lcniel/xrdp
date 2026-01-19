@@ -711,7 +711,7 @@ active_processes(const struct session_data *baseobj)
 {
     // Downcast the base object pointer to a pointer to the X11 session object
     struct session_data_x11 *self = (struct session_data_x11 *)baseobj;
-
+    
     return (self->win_mgr_pid > 0) +
            (self->x_server_pid > 0) + (self->base.chansrv_pid > 0);
 }

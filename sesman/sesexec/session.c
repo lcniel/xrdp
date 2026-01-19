@@ -158,6 +158,9 @@ session_process_sigchld_event(struct session_data *self)
 unsigned int
 session_active(const struct session_data *self)
 {
+    if (self == NULL) {
+        return 0;
+    }
     return self->vtable->active_processes(self);
 }
 
