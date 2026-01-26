@@ -292,6 +292,7 @@ start_wayvnc(struct session_data *baseobj,
 {
     char execvpparams[2048];
     char sockname[XRDP_SOCKETS_MAXPATH];
+    char ctlname[XRDP_SOCKETS_MAXPATH];
 
     env_set_user(login_info->uid,
                  0,
@@ -311,9 +312,14 @@ start_wayvnc(struct session_data *baseobj,
     /* Get the VNC socket name */
     g_snprintf(sockname, sizeof(sockname), XRDP_X11RDP_STR,
                login_info->uid, baseobj->display);
+    g_snprintf(ctlname, sizeof(ctlname), "%s-%s", sockname, "ctl");
     if (g_file_exist(sockname))
     {
         (void)g_file_delete(sockname);
+    }
+    if (g_file_exist(ctlname))
+    {
+        (void)g_file_delete(ctlname);
     }
 
     struct list *params = list_create();
@@ -323,8 +329,10 @@ start_wayvnc(struct session_data *baseobj,
                                    wayvnc,
                                    "-u",
                                    sockname,
-                                   NULL))
-    {
+                                   "-S",
+                                   ctlname,
+                                   NULL)){
+
         LOG(LOG_LEVEL_ERROR, "Out of memory allocating wayvnc params");
     }
     else
