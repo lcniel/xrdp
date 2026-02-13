@@ -1226,7 +1226,7 @@ lib_framebuffer_first_update(struct vnc *v)
         else
         {
             LOG(LOG_LEVEL_DEBUG, "VNC server does not support resizing");
-            v->resize_supported = VRSS_NOT_SUPPORTED;
+            v->resize_supported = VRSS_SUPPORTED;
 
             /* Force client to same size as server */
             LOG(LOG_LEVEL_DEBUG, "Resizing client to server %dx%d",
